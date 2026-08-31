@@ -228,4 +228,82 @@ class MessageController extends Controller
 
         return $thumbRelativePath;
     }
+
+    /**
+     * Update an existing message.
+     */
+    public function update(Request $request, Conversation $conversation, Message $message)
+    {
+        Gate::authorize('sendMessage', $conversation);
+        
+        if ($message->user_id !== Auth::id() || $message->is_deleted) {
+            abort(403, 'Unauthorized or message already deleted.');
+        }
+
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $message->update([
+            'body' => $validated['body'],
+            'is_edited' => true,
+        ]);
+
+        try {
+            broadcast(new \App\Events\MessageEdited($message))->toOthers();
+        } catch (\Throwable $e) {
+            Log::warning('MessageEdited broadcast skipped: ' . $e->getMessage());
+        }
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => [
+                    'id' => $message->id,
+                    'body' => $message->body,
+                    'is_edited' => $message->is_edited,
+                    'formatted_time' => $message->formatted_time,
+                ]
+            ]);
+        }
+
+        return back()->with('status', 'Message updated.');
+    }
+
+    /**
+     * Delete a message.
+     */
+    public function destroy(Request $request, Conversation $conversation, Message $message)
+    {
+        Gate::authorize('sendMessage', $conversation);
+        
+        if ($message->user_id !== Auth::id() || $message->is_deleted) {
+            abort(403, 'Unauthorized or message already deleted.');
+        }
+
+        $message->update([
+            'is_deleted' => true,
+            'deleted_at' => now(),
+            'body' => 'This message was deleted',
+        ]);
+
+        try {
+            broadcast(new \App\Events\MessageDeleted($message))->toOthers();
+        } catch (\Throwable $e) {
+            Log::warning('MessageDeleted broadcast skipped: ' . $e->getMessage());
+        }
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => [
+                    'id' => $message->id,
+                    'is_deleted' => true,
+                    'body' => $message->body,
+                ]
+            ]);
+        }
+
+        return back()->with('status', 'Message deleted.');
+    }
 }

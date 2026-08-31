@@ -152,47 +152,71 @@
 
                             @forelse ($messages as $msg)
                                 @php $isSender = $msg->user_id === auth()->id(); @endphp
-                                <div class="message-row {{ $isSender ? 'outgoing' : 'incoming' }}">
-                                    <div class="message-bubble">
-                                        @if (!$isSender && $activeConversation->isGroup())
-                                            <small class="fw-bold d-block text-primary mb-1">{{ $msg->user?->name ?? 'User' }}</small>
-                                        @endif
-
-                                        <!-- Attachments -->
-                                        @if ($msg->attachments->isNotEmpty())
-                                            <div class="message-attachments mb-2">
-                                                @foreach ($msg->attachments as $att)
-                                                    @if ($att->is_image)
-                                                        <div class="attachment-image mb-1">
-                                                            <a href="{{ $att->url }}" target="_blank" class="d-block text-decoration-none">
-                                                                <img src="{{ $att->thumbnail_url }}" alt="{{ $att->original_name }}" class="img-fluid rounded border" style="max-height: 220px; object-fit: cover;">
-                                                            </a>
-                                                        </div>
-                                                    @else
-                                                        <div class="attachment-file p-2 rounded bg-white bg-opacity-75 border mb-1 d-flex align-items-center gap-2">
-                                                            <i class="bi {{ $att->is_pdf ? 'bi-file-earmark-pdf text-danger' : 'bi-file-earmark-text text-primary' }} fs-4"></i>
-                                                            <div class="overflow-hidden flex-grow-1">
-                                                                <a href="{{ $att->url }}" target="_blank" download class="fw-semibold text-truncate d-block small text-dark">
-                                                                    {{ $att->original_name }}
-                                                                </a>
-                                                                <small class="text-muted d-block" style="font-size: 0.72rem;">{{ $att->formatted_size }}</small>
-                                                            </div>
-                                                            <a href="{{ $att->url }}" target="_blank" download class="btn btn-sm btn-light border py-0 px-2" title="Download">
-                                                                <i class="bi bi-download"></i>
-                                                            </a>
-                                                        </div>
-                                                    @endif
-                                                @endforeach
+                                <div class="message-row {{ $isSender ? 'outgoing' : 'incoming' }}" id="message-row-{{ $msg->id }}" data-message-id="{{ $msg->id }}">
+                                    <div class="message-bubble position-relative">
+                                        @if ($msg->is_deleted)
+                                            <div class="message-content fst-italic" style="opacity: 0.8;">
+                                                <i class="bi bi-ban me-1"></i> This message was deleted
                                             </div>
-                                        @endif
+                                        @else
+                                            @if (!$isSender && $activeConversation->isGroup())
+                                                <small class="fw-bold d-block text-primary mb-1">{{ $msg->user?->name ?? 'User' }}</small>
+                                            @endif
 
-                                        @if ($msg->body)
-                                            <div class="message-content">{{ $msg->body }}</div>
-                                        @endif
+                                            <!-- Attachments -->
+                                            @if ($msg->attachments->isNotEmpty())
+                                                <div class="message-attachments mb-2">
+                                                    @foreach ($msg->attachments as $att)
+                                                        @if ($att->is_image)
+                                                            <div class="attachment-image mb-1">
+                                                                <a href="{{ $att->url }}" target="_blank" class="d-block text-decoration-none">
+                                                                    <img src="{{ $att->thumbnail_url }}" alt="{{ $att->original_name }}" class="img-fluid rounded border" style="max-height: 220px; object-fit: cover;">
+                                                                </a>
+                                                            </div>
+                                                        @else
+                                                            <div class="attachment-file p-2 rounded bg-white bg-opacity-75 border mb-1 d-flex align-items-center gap-2">
+                                                                <i class="bi {{ $att->is_pdf ? 'bi-file-earmark-pdf text-danger' : 'bi-file-earmark-text text-primary' }} fs-4"></i>
+                                                                <div class="overflow-hidden flex-grow-1">
+                                                                    <a href="{{ $att->url }}" target="_blank" download class="fw-semibold text-truncate d-block small text-dark">
+                                                                        {{ $att->original_name }}
+                                                                    </a>
+                                                                    <small class="text-muted d-block" style="font-size: 0.72rem;">{{ $att->formatted_size }}</small>
+                                                                </div>
+                                                                <a href="{{ $att->url }}" target="_blank" download class="btn btn-sm btn-light border py-0 px-2" title="Download">
+                                                                    <i class="bi bi-download"></i>
+                                                                </a>
+                                                            </div>
+                                                        @endif
+                                                    @endforeach
+                                                </div>
+                                            @endif
 
-                                        <div class="message-time">
-                                            <span>{{ $msg->formatted_time }}</span>
-                                        </div>
+                                            @if ($msg->body)
+                                                <div class="message-content" id="message-content-{{ $msg->id }}">{{ $msg->body }}</div>
+                                            @endif
+
+                                            <div class="message-time">
+                                                @if($msg->is_edited)
+                                                    <small class="me-1 fst-italic" style="opacity: 0.75;" id="message-edited-{{ $msg->id }}">(edited)</small>
+                                                @else
+                                                    <small class="me-1 fst-italic d-none" style="opacity: 0.75;" id="message-edited-{{ $msg->id }}">(edited)</small>
+                                                @endif
+                                                <span>{{ $msg->formatted_time }}</span>
+                                            </div>
+
+                                            <!-- Dropdown for Sender -->
+                                            @if ($isSender)
+                                                <div class="dropdown position-absolute" style="top: 4px; right: 4px;">
+                                                    <button class="btn btn-sm btn-link p-0 text-decoration-none dropdown-toggle-hide-arrow {{ $isSender ? 'text-white' : 'text-dark' }}" style="opacity: 0.6;" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                                        <i class="bi bi-chevron-down"></i>
+                                                    </button>
+                                                    <ul class="dropdown-menu dropdown-menu-end shadow-sm" style="min-width: 120px;">
+                                                        <li><button type="button" class="dropdown-item small btn-edit-message" data-id="{{ $msg->id }}" data-body="{{ $msg->body }}">Edit</button></li>
+                                                        <li><button type="button" class="dropdown-item small text-danger btn-delete-message" data-id="{{ $msg->id }}">Delete</button></li>
+                                                    </ul>
+                                                </div>
+                                            @endif
+                                        @endif
                                     </div>
                                 </div>
                             @empty
@@ -510,18 +534,53 @@ document.addEventListener('DOMContentLoaded', function() {
             attachmentsHtml += '</div>';
         }
 
-        const bodyHtml = data.body ? `<div class="message-content">${escapeHtml(data.body)}</div>` : '';
+        const isDeleted = data.is_deleted === true;
+        
+        let bubbleContent = '';
+        if (isDeleted) {
+            bubbleContent = `
+                <div class="message-content fst-italic" style="opacity: 0.8;">
+                    <i class="bi bi-ban me-1"></i> This message was deleted
+                </div>
+            `;
+        } else {
+            const bodyHtml = data.body ? `<div class="message-content" id="message-content-${data.id}">${escapeHtml(data.body)}</div>` : '';
+            const editedHtml = data.is_edited ? `<small class="me-1 fst-italic" style="opacity: 0.75;" id="message-edited-${data.id}">(edited)</small>` : `<small class="me-1 fst-italic d-none" style="opacity: 0.75;" id="message-edited-${data.id}">(edited)</small>`;
+            
+            let dropdownHtml = '';
+            if (isSender) {
+                dropdownHtml = `
+                    <div class="dropdown position-absolute" style="top: 4px; right: 4px;">
+                        <button class="btn btn-sm btn-link p-0 text-decoration-none dropdown-toggle-hide-arrow text-white" style="opacity: 0.6;" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-chevron-down"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm" style="min-width: 120px;">
+                            <li><button type="button" class="dropdown-item small btn-edit-message" data-id="${data.id}" data-body="${escapeHtml(data.body || '')}">Edit</button></li>
+                            <li><button type="button" class="dropdown-item small text-danger btn-delete-message" data-id="${data.id}">Delete</button></li>
+                        </ul>
+                    </div>
+                `;
+            }
 
-        const row = document.createElement('div');
-        row.className = `message-row ${isSender ? 'outgoing' : 'incoming'}`;
-        row.innerHTML = `
-            <div class="message-bubble">
+            bubbleContent = `
                 ${senderHeader}
                 ${attachmentsHtml}
                 ${bodyHtml}
                 <div class="message-time">
+                    ${editedHtml}
                     <span>${data.formatted_time || 'Just now'}</span>
                 </div>
+                ${dropdownHtml}
+            `;
+        }
+
+        const row = document.createElement('div');
+        row.className = `message-row ${isSender ? 'outgoing' : 'incoming'}`;
+        row.id = `message-row-${data.id}`;
+        row.setAttribute('data-message-id', data.id);
+        row.innerHTML = `
+            <div class="message-bubble position-relative">
+                ${bubbleContent}
             </div>
         `;
 
@@ -600,6 +659,33 @@ document.addEventListener('DOMContentLoaded', function() {
             updateSidebarConversation(e);
         }
 
+        function handleMessageEdited(e) {
+            const contentEl = document.getElementById(`message-content-${e.id}`);
+            const editedBadgeEl = document.getElementById(`message-edited-${e.id}`);
+            if (contentEl) {
+                contentEl.innerHTML = escapeHtml(e.body);
+            }
+            if (editedBadgeEl) {
+                editedBadgeEl.classList.remove('d-none');
+            }
+            updateSidebarConversation(e);
+        }
+
+        function handleMessageDeleted(e) {
+            const rowEl = document.getElementById(`message-row-${e.id}`);
+            if (rowEl) {
+                const bubbleEl = rowEl.querySelector('.message-bubble');
+                if (bubbleEl) {
+                    bubbleEl.innerHTML = `
+                        <div class="message-content fst-italic" style="opacity: 0.8;">
+                            <i class="bi bi-ban me-1"></i> This message was deleted
+                        </div>
+                    `;
+                }
+            }
+            updateSidebarConversation(e);
+        }
+
         // =============================================================
         // WEBRTC CALLING STATE & PEER CONNECTION
         // =============================================================
@@ -667,6 +753,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 .listen('.MessageSent', handleIncomingMessage)
                 .listen('MessageSent', handleIncomingMessage)
                 .listen('App\\Events\\MessageSent', handleIncomingMessage)
+                .listen('.MessageEdited', handleMessageEdited)
+                .listen('MessageEdited', handleMessageEdited)
+                .listen('App\\Events\\MessageEdited', handleMessageEdited)
+                .listen('.MessageDeleted', handleMessageDeleted)
+                .listen('MessageDeleted', handleMessageDeleted)
+                .listen('App\\Events\\MessageDeleted', handleMessageDeleted)
                 .listenForWhisper('typing', (e) => {
                     if (e.id !== CURRENT_USER_ID) {
                         showTypingIndicator(e.name);
@@ -1260,13 +1352,81 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // -------------------------------------------------------------
-        // 4. Form Submit Handler (AJAX + FormData with fallback)
+        // 4. Edit, Delete & Form Submit Handler (AJAX + FormData)
         // -------------------------------------------------------------
         const form = document.getElementById('chat-message-form');
         const input = document.getElementById('message-body-input');
         const sendBtn = document.getElementById('btn-send-message');
         const sendIcon = document.getElementById('send-icon');
         const sendSpinner = document.getElementById('send-spinner');
+        
+        let editMode = false;
+        let editMessageId = null;
+        
+        // Handle Edit/Delete button clicks
+        if (stream) {
+            stream.addEventListener('click', function(e) {
+                const editBtn = e.target.closest('.btn-edit-message');
+                if (editBtn) {
+                    editMessageId = editBtn.getAttribute('data-id');
+                    const body = editBtn.getAttribute('data-body');
+                    editMode = true;
+                    
+                    input.value = body;
+                    input.focus();
+                    
+                    if (sendIcon) sendIcon.className = 'bi bi-check-circle-fill me-1';
+                    if (sendBtn) {
+                        sendBtn.classList.remove('btn-primary');
+                        sendBtn.classList.add('btn-success');
+                        sendBtn.querySelector('span:not(.spinner-border)').textContent = 'Update';
+                    }
+                    return;
+                }
+                
+                const delBtn = e.target.closest('.btn-delete-message');
+                if (delBtn) {
+                    const msgId = delBtn.getAttribute('data-id');
+                    if (confirm('Delete this message for everyone?')) {
+                        fetch(`/conversations/${conversationId}/messages/${msgId}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                                'Accept': 'application/json'
+                            }
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                handleMessageDeleted(data.message);
+                            }
+                        })
+                        .catch(err => console.error('Delete error:', err));
+                    }
+                }
+            });
+        }
+        
+        // Cancel edit on Escape
+        if (input) {
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && editMode) {
+                    resetEditMode();
+                }
+            });
+        }
+
+        function resetEditMode() {
+            editMode = false;
+            editMessageId = null;
+            input.value = '';
+            if (sendIcon) sendIcon.className = 'bi bi-send-fill me-1';
+            if (sendBtn) {
+                sendBtn.classList.remove('btn-success');
+                sendBtn.classList.add('btn-primary');
+                sendBtn.querySelector('span:not(.spinner-border)').textContent = 'Send';
+            }
+        }
 
         if (form) {
             form.addEventListener('submit', function(e) {
@@ -1287,9 +1447,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (sendSpinner) sendSpinner.classList.remove('d-none');
 
                 const formData = new FormData(form);
+                
+                let fetchUrl = form.action;
+                let fetchMethod = 'POST';
+                
+                if (editMode && editMessageId) {
+                    formData.append('_method', 'PUT');
+                    fetchUrl = `/conversations/${conversationId}/messages/${editMessageId}`;
+                }
 
-                fetch(form.action, {
-                    method: 'POST',
+                fetch(fetchUrl, {
+                    method: 'POST', // always POST for FormData, _method=PUT overrides it in Laravel
                     headers: {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                         'Accept': 'application/json'
@@ -1297,14 +1465,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     body: formData
                 })
                 .then(response => {
-                    if (!response.ok) throw new Error('Failed to send message.');
+                    if (!response.ok) throw new Error('Failed to send/update message.');
                     return response.json();
                 })
                 .then(data => {
                     if (data.success && data.message) {
-                        appendMessageBubble(data.message, true);
-                        updateSidebarConversation(data.message);
-                        input.value = '';
+                        if (editMode) {
+                            handleMessageEdited(data.message);
+                        } else {
+                            appendMessageBubble(data.message, true);
+                            updateSidebarConversation(data.message);
+                        }
+                        
+                        resetEditMode();
+                        
                         if (attachmentInput) attachmentInput.value = '';
                         if (attachmentPreviewBar) {
                             attachmentPreviewBar.classList.add('d-none');
@@ -1315,7 +1489,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 .catch(err => {
                     console.error('AJAX send error:', err);
                     if (typeof window.showToast === 'function') {
-                        window.showToast('Could not send message. Please verify Reverb/Network.', 'danger');
+                        window.showToast('Could not process request. Please try again.', 'danger');
                     }
                 })
                 .finally(() => {

@@ -31,5 +31,8 @@ Route::middleware('auth')->group(function () {
         ->middleware('throttle:messages')
         ->name('messages.store');
 
+    Route::put('/conversations/{conversation}/messages/{message}', [MessageController::class, 'update'])->name('messages.update');
+    Route::delete('/conversations/{conversation}/messages/{message}', [MessageController::class, 'destroy'])->name('messages.destroy');
+
     Route::post('/conversations/{conversation}/read', [ConversationController::class, 'markAsRead'])->name('conversations.read');
 });

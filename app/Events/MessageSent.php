@@ -55,6 +55,8 @@ class MessageSent implements ShouldBroadcastNow
             'user_id' => $this->message->user_id,
             'body' => $this->message->body,
             'type' => $this->message->type,
+            'is_edited' => $this->message->is_edited,
+            'is_deleted' => $this->message->is_deleted,
             'created_at' => $this->message->created_at->toISOString(),
             'formatted_time' => $this->message->formatted_time,
             'formatted_date' => $this->message->formatted_date,

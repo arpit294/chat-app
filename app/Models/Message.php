@@ -16,11 +16,17 @@ class Message extends Model
         'user_id',
         'body',
         'type',
+        'is_edited',
+        'is_deleted',
+        'deleted_at',
     ];
 
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'deleted_at' => 'datetime',
+        'is_edited' => 'boolean',
+        'is_deleted' => 'boolean',
     ];
 
     protected $appends = [
